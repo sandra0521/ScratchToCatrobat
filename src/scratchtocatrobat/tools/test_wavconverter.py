@@ -22,7 +22,7 @@ import os
 import unittest
 
 from scratchtocatrobat.tools import common_testing
-from scratchtocatrobat.tools import wavconverter
+from scratchtocatrobat.tools import soundconverter
 
 _ENV_PATH = "PATH"
 
@@ -48,11 +48,11 @@ class WavConverterTest(common_testing.BaseTestCase):
         dummy_wav = self.adpcm_wavfile_paths()[0]
         output_path = None
         try:
-            wavconverter.is_android_compatible_wav(dummy_wav)
+            soundconverter.is_android_compatible_wav(dummy_wav)
             self.fail("Expected exception 'EnvironmentError' not thrown")
         except EnvironmentError:
             try:
-                output_path = wavconverter.convert_to_android_compatible_wav(dummy_wav)
+                output_path = soundconverter.convert_to_android_compatible_wav(dummy_wav)
                 self.fail("Expected exception 'EnvironmentError' not thrown")
             except EnvironmentError:
                 pass
@@ -67,17 +67,17 @@ class WavConverterTest(common_testing.BaseTestCase):
 
     def test_can_detect_android_incompatible_wav_file(self):
         for wav_path in self.adpcm_wavfile_paths():
-            assert not wavconverter.is_android_compatible_wav(wav_path)
+            assert not soundconverter.is_android_compatible_wav(wav_path)
 
     def test_can_detect_android_compatible_wav_file(self):
         for wav_path in self.pcm_wavfile_paths():
-            assert wavconverter.is_android_compatible_wav(wav_path)
+            assert soundconverter.is_android_compatible_wav(wav_path)
 
     def test_can_convert_android_incompatible_to_compatible_wav_file(self):
         for wav_path in self.adpcm_wavfile_paths():
-            assert not wavconverter.is_android_compatible_wav(wav_path)
-            converted_wav_path = wavconverter.convert_to_android_compatible_wav(wav_path)
-            assert wavconverter.is_android_compatible_wav(converted_wav_path)
+            assert not soundconverter.is_android_compatible_wav(wav_path)
+            converted_wav_path = soundconverter.convert_to_android_compatible_wav(wav_path)
+            assert soundconverter.is_android_compatible_wav(converted_wav_path)
             os.remove(converted_wav_path)
 
 

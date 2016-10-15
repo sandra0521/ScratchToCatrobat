@@ -29,11 +29,13 @@ from scratchtocatrobat.tools import logger
 _log = logger.log
 
 _SOX_BINARY = "sox"
+_FFMPEG_BINARY = "ffmpeg"
 _SOX_OUTPUT_PCM_PATTERN = re.compile("Sample Encoding:.* PCM")
-# TODO: refactor to single mediaconverter class together with svgtopng
+
 # WORKAROUND: jython + find_executable() leads to wrong result if ".exe" extension is missing
 if System.getProperty("os.name").lower().startswith("win"):
     _SOX_BINARY += ".exe"
+    _FFMPEG_BINARY += ".exe"
 
 
 def _checked_sox_path():
@@ -42,6 +44,14 @@ def _checked_sox_path():
         raise EnvironmentError("Sox binary must be available on system path.")
     assert os.path.exists(_sox_path)
     return _sox_path
+
+
+def _checked_ffmpeg_path():
+    _ffmpeg_path = find_executable(_FFMPEG_BINARY)
+    if not _ffmpeg_path or _ffmpeg_path == _FFMPEG_BINARY:
+        raise EnvironmentError("Ffmpeg binary must be available on system path.")
+    assert os.path.exists(_ffmpeg_path)
+    return _ffmpeg_path
 
 
 def is_android_compatible_wav(file_path):
@@ -63,3 +73,17 @@ def convert_to_android_compatible_wav(input_path):
                            "-e", "unsigned-integer", output_path])
     assert os.path.exists(output_path)
     return output_path
+
+
+def convert_to_html5_compatible_mp3(input_path):
+    output_path = input_path.replace(".mp3", "_converted.mp3")
+    _log.info("      converting '%s' to Pocket Code compatible mp3 '%s'", input_path, output_path)
+
+    if os.path.exists(output_path):
+        _log.info("      nothing to do: '%s' already exists", output_path)
+        return output_path
+
+    subprocess.check_call([_checked_ffmpeg_path(), "-i", input_path, output_path])
+    assert os.path.exists(output_path)
+    return output_path
+

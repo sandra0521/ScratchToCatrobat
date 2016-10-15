@@ -23,6 +23,7 @@ from __future__ import print_function
 import logging
 import os
 import sys
+import shutil
 from docopt import docopt
 from scratchtocatrobat.tools import logger
 from scratchtocatrobat.tools import helpers
@@ -36,38 +37,43 @@ logger.setup_logging()
 log = logging.getLogger("scratchtocatrobat.main")
 __version__ = helpers.application_info("version")
 
+
+def _check_base_environment():
+    if "java" not in sys.platform:
+        raise EnvironmentError("Must be called with Jython interpreter.")
+    from java.lang import System
+    if System.getProperty(helpers.JYTHON_RESPECT_JAVA_ACCESSIBILITY_PROPERTY) != 'false':
+        raise EnvironmentError("Jython registry property '%s' must be set to 'false'." % helpers.JYTHON_RESPECT_JAVA_ACCESSIBILITY_PROPERTY)
+
+
+def _check_converter_environment():
+    # TODO: refactor to combined class with explicit environment check method
+    from scratchtocatrobat import tools
+    tools.svgtopng._checked_batik_jar_path()
+    tools.soundconverter._checked_sox_path()
+
+
 def run_converter(scratch_project_file_or_url, output_dir,
                   extract_resulting_catrobat=False, temp_rm=True,
                   show_version_only=False, show_info_only=False,
                   archive_name=None,
                   web_mode=False):
-    def check_base_environment():
-        if "java" not in sys.platform:
-            raise EnvironmentError("Must be called with Jython interpreter.")
-        if System.getProperty(helpers.JYTHON_RESPECT_JAVA_ACCESSIBILITY_PROPERTY) != 'false':
-            raise EnvironmentError("Jython registry property '%s' must be set to 'false'." % helpers.JYTHON_RESPECT_JAVA_ACCESSIBILITY_PROPERTY)
 
-    def check_converter_environment():
-        # TODO: refactor to combined class with explicit environment check method
-        tools.svgtopng._checked_batik_jar_path()
-        tools.wavconverter._checked_sox_path()
 
     try:
         from java.io import IOError
-        from java.lang import System
     except ImportError:
         log.error("Must be called with Jython interpreter.")
         return helpers.ExitCode.FAILURE
 
     # nested import to be able to check for Jython interpreter first
-    from scratchtocatrobat import tools
     from scratchtocatrobat.tools import common
     from scratchtocatrobat.converter import converter, catrobat
     from scratchtocatrobat.scratch import scratchwebapi, scratch
 
     try:
-        check_base_environment()
-        check_converter_environment()
+        _check_base_environment()
+        _check_converter_environment()
 
         catrobat_language_version_from_config = float(helpers.catrobat_info("catrobat_language_version"))
         if catrobat_language_version_from_config != catrobat.CATROBAT_LANGUAGE_VERSION:
@@ -154,6 +160,65 @@ def run_converter(scratch_project_file_or_url, output_dir,
         return helpers.ExitCode.FAILURE
     return helpers.ExitCode.SUCCESS
 
+
+def run_sound_converter(sound_file_or_url, output_dir, temp_rm=True, web_mode=False):
+    try:
+        from java.io import IOError
+        from java.net import SocketTimeoutException, SocketException, UnknownHostException
+        from java.io import IOException
+    except ImportError:
+        log.error("Must be called with Jython interpreter.")
+        return helpers.ExitCode.FAILURE
+
+    # nested import to be able to check for Jython interpreter first
+    from scratchtocatrobat.tools import common
+    from scratchtocatrobat.converter import mediaconverter
+    from scratchtocatrobat.scratch import scratchwebapi
+
+    try:
+        _check_base_environment()
+        _check_converter_environment()
+
+        log.info("calling sound-converter")
+        if not os.path.isdir(output_dir):
+            raise EnvironmentError("Output folder must be a directory, but is %s" % output_dir)
+
+        progress_bar = None #helpers.ProgressBar(None, web_mode, sys.stdout)
+        with common.TemporaryDirectory(remove_on_exit=temp_rm) as sound_file_dir:
+            new_sound_file_path = os.path.join(sound_file_dir, "1.mp3")
+            if sound_file_or_url.startswith("https://"):
+                # TODO: change this!!!
+                if not scratchwebapi.is_valid_project_url(sound_file_or_url):
+                    raise common.ScratchtobatError("Invalid URL for sound file given: %s" %
+                                                   sound_file_or_url)
+                try:
+                    log.info("Downloading sound file from URL: '{}' to temp dir {} ...".format(
+                                                    sound_file_or_url, sound_file_dir))
+                    common.download_file(sound_file_or_url, new_sound_file_path)
+                except (SocketTimeoutException, SocketException, UnknownHostException, IOException) as e:
+                    raise RuntimeError("Error with {}: '{}'".format(sound_file_or_url, e))
+
+            elif os.path.isfile(sound_file_or_url):
+                shutil.copyfile(sound_file_or_url, new_sound_file_path)
+                #    progress_bar.expected_progress = project.expected_progress_of_local_project(progress_bar)
+
+            else:
+                raise common.ScratchtobatError("Sound file not found in %s" % sound_file_or_url)
+
+            log.info("Converting sound file '%s' into output folder: %s", new_sound_file_path, output_dir)
+            new_sound_file_path = mediaconverter.StandaloneSoundConverter().convert(new_sound_file_path, progress_bar)
+            shutil.copyfile(new_sound_file_path, os.path.join(output_dir, "1.mp3"))
+
+        #progress_bar.finish()
+    except (common.ScratchtobatError, EnvironmentError, IOError) as e:
+        log.error(e)
+        return helpers.ExitCode.FAILURE
+    except Exception as e:
+        log.exception(e)
+        return helpers.ExitCode.FAILURE
+    return helpers.ExitCode.SUCCESS
+
+
 def main():
     log = logging.getLogger("scratchtocatrobat.main")
     usage = '''Scratch to Catrobat converter
@@ -162,6 +227,7 @@ def main():
       'main.py' <project-url-or-package-path> <output-dir> <archive-name> [--extracted] [--no-temp-rm] [--web-mode]
       'main.py' <project-url-or-package-path> <output-dir> [--extracted] [--no-temp-rm]
       'main.py' <project-url-or-package-path> [--extracted] [--no-temp-rm]
+      'main.py' <sound-file-url-or-file-path> <output-dir> --convert-sound [--no-temp-rm] [--web-mode]
       'main.py' --version
       'main.py' --info
 
@@ -177,22 +243,36 @@ def main():
 
     try:
         kwargs = {}
-        kwargs['extract_resulting_catrobat'] = arguments["--extracted"]
         kwargs['temp_rm'] = not arguments["--no-temp-rm"]
         kwargs['web_mode'] = arguments["--web-mode"]
+        output_dir = helpers.config.get("PATHS", "output")
+        output_dir = arguments["<output-dir>"] if arguments["<output-dir>"] != None else output_dir
+
+        # case: Sound converter
+        if arguments["--convert-sound"]:
+            sound_file_or_url = arguments["<sound-file-url-or-file-path>"].replace("http://", "https://")
+            scratch_base_url = helpers.config.get("CATROBAT_HTML5_PROJECT_API", "base_url")
+            if sound_file_or_url.startswith("https://") and not sound_file_or_url.startswith(scratch_base_url):
+                log.error("No valid scratch URL given {0}[ID]".format(scratch_base_url))
+                sys.exit(helpers.ExitCode.FAILURE)
+            sys.exit(run_sound_converter(sound_file_or_url, output_dir, **kwargs))
+
+        # case: Scratch2catrobat converter
+        kwargs['extract_resulting_catrobat'] = arguments["--extracted"]
         kwargs['show_version_only'] = arguments["--version"]
         kwargs['show_info_only'] = arguments["--info"]
         kwargs['archive_name'] = arguments["<archive-name>"]
-        output_dir = helpers.config.get("PATHS", "output")
-        output_dir = arguments["<output-dir>"] if arguments["<output-dir>"] != None else output_dir
-        project_url_or_package_path = ""
+
         if arguments["<project-url-or-package-path>"]:
             project_url_or_package_path = arguments["<project-url-or-package-path>"].replace("http://", "https://")
             scratch_base_url = helpers.config.get("SCRATCH_API", "project_base_url")
             if project_url_or_package_path.startswith("https://") and not project_url_or_package_path.startswith(scratch_base_url):
                 log.error("No valid scratch URL given {0}[ID]".format(scratch_base_url))
                 sys.exit(helpers.ExitCode.FAILURE)
-        sys.exit(run_converter(project_url_or_package_path, output_dir, **kwargs))
+            sys.exit(run_converter(project_url_or_package_path, output_dir, **kwargs))
+        else:
+            raise RuntimeError("No project URL or file path given!")
+
     except Exception as e:
         log.exception(e)
         sys.exit(helpers.ExitCode.FAILURE)

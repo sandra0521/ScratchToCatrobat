@@ -29,10 +29,10 @@ from scratchtocatrobat.converter import catrobat
 from scratchtocatrobat.tools import common
 from scratchtocatrobat.scratch.scratch import JsonKeys
 from scratchtocatrobat.tools import svgtopng
-from scratchtocatrobat.tools import wavconverter
+from scratchtocatrobat.tools import soundconverter
 from scratchtocatrobat.tools import helpers
 from scratchtocatrobat.tools.helpers import ProgressType
-from scratchtocatrobat.tools import image_processing
+from scratchtocatrobat.tools import imageprocessing
 
 MAX_CONCURRENT_THREADS = int(helpers.config.get("MEDIA_CONVERTER", "max_concurrent_threads"))
 log = logger.log
@@ -75,7 +75,7 @@ class _MediaResourceConverterThread(Thread):
             new_src_path = svgtopng.convert(old_src_path, info["rotationCenterX"], info["rotationCenterY"])
         elif media_type == MediaType.UNCONVERTED_WAV:
             # converting Android-incompatible wav to compatible wav
-            new_src_path = wavconverter.convert_to_android_compatible_wav(old_src_path)
+            new_src_path = soundconverter.convert_to_android_compatible_wav(old_src_path)
         else:
             assert False, "Unsupported Media Type! Cannot convert media file: %s" % old_src_path
 
@@ -85,6 +85,13 @@ class _MediaResourceConverterThread(Thread):
             progress_bar.update(ProgressType.CONVERT_MEDIA_FILE)
         assert os.path.exists(new_src_path), "Not existing: {}. Available files in directory: {}" \
                .format(new_src_path, os.listdir(os.path.dirname(new_src_path)))
+
+
+class StandaloneSoundConverter(object):
+
+    def convert(self, sounds_file_path, progress_bar = None):
+        # converting HTML5-incompatible mp3 to compatible mp3
+        return soundconverter.convert_to_html5_compatible_mp3(sounds_file_path)
 
 
 class MediaConverter(object):
@@ -157,7 +164,7 @@ class MediaConverter(object):
                 assert os.path.exists(sound_src_path), "Not existing: {}".format(sound_src_path)
                 assert file_ext in {".wav", ".mp3"}, "Unsupported sound file extension: %s" % sound_src_path
 
-                is_unconverted = file_ext == ".wav" and not wavconverter.is_android_compatible_wav(sound_src_path)
+                is_unconverted = file_ext == ".wav" and not soundconverter.is_android_compatible_wav(sound_src_path)
                 resource_info = {
                     "scratch_md5_name": sound_file_name,
                     "src_path": sound_src_path,
@@ -226,13 +233,13 @@ class MediaConverter(object):
                     is_italic = font_style == "Italic"
                     font_size = float(costume_info[JsonKeys.COSTUME_FONT_SIZE])
                     image_file_path = src_path
-                    font = image_processing.create_font(font_name, font_size, is_bold, is_italic)
+                    font = imageprocessing.create_font(font_name, font_size, is_bold, is_italic)
                     assert font is not None
-                    editable_image = image_processing.read_editable_image_from_disk(image_file_path)
-                    editable_image = image_processing.add_text_to_image(editable_image, text, font, Color.BLACK, float(x), float(y), float(width), float(height))
+                    editable_image = imageprocessing.read_editable_image_from_disk(image_file_path)
+                    editable_image = imageprocessing.add_text_to_image(editable_image, text, font, Color.BLACK, float(x), float(y), float(width), float(height))
                     # TODO: create duplicate...
                     # TODO: move test_converter.py to converter-python-package...
-                    image_processing.save_editable_image_as_png_to_disk(editable_image, image_file_path, overwrite=True)
+                    imageprocessing.save_editable_image_as_png_to_disk(editable_image, image_file_path, overwrite=True)
 
             self._copy_media_file(scratch_md5_name, src_path, resource_info["dest_path"],
                                   resource_info["media_type"])

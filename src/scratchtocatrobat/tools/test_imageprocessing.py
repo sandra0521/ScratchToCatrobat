@@ -22,7 +22,7 @@ import os
 import unittest
 
 from scratchtocatrobat.tools import common_testing
-from scratchtocatrobat.tools import image_processing as img_proc
+from scratchtocatrobat.tools import imageprocessing as img_proc
 import java.awt.Font
 from java.awt import Color
 import java.awt.image.BufferedImage

@@ -32,7 +32,9 @@ class JobTCPClient(tornado.tcpclient.TCPClient):
     pass
 
 class JobHandler(object):
-    def __init__(self, host, port, verbose, auth_key, ssl_options):
+    def __init__(self, job_category, job_ID, host, port, verbose, auth_key, ssl_options):
+        self._job_category = job_category
+        self._job_ID = job_ID
         self._host = host
         self._port = port
         self._verbose = verbose
@@ -75,10 +77,11 @@ class JobHandler(object):
         _logger.info('[%s]: "%s"' % (SERVER, reply.msg))
 
     @gen.coroutine
-    def send_job_started_notification(self, job_ID, title, image_URL):
+    def send_job_started_notification(self, title, image_URL):
         _logger.debug('[%s]: Sending job started notification' % CLIENT)
         args = {
-            Request.ARGS_JOB_ID: job_ID,
+            Request.ARGS_JOB_CATEGORY: self._job_category,
+            Request.ARGS_JOB_ID: self._job_ID,
             Request.ARGS_IMAGE_URL: image_URL,
             Request.ARGS_TITLE: title,
             Request.ARGS_MSG: "Job started"
@@ -96,7 +99,7 @@ class JobHandler(object):
         _logger.info('[%s]: "%s"' % (SERVER, reply.msg))
 
     @gen.coroutine
-    def send_job_progress_notification(self, job_ID, progress):
+    def send_job_progress_notification(self, progress):
         # Job progress (request)
         if not isinstance(progress, int):
             _logger.warn("[{}]: Cannot send progress notification! Given progress is "\
@@ -104,7 +107,11 @@ class JobHandler(object):
             return
 
         _logger.debug('[%s]: (%d%%) Sending job progress notification' % (CLIENT, progress))
-        args = { Request.ARGS_JOB_ID: job_ID, Request.ARGS_PROGRESS: progress }
+        args = {
+            Request.ARGS_JOB_CATEGORY: self._job_category,
+            Request.ARGS_JOB_ID: self._job_ID,
+            Request.ARGS_PROGRESS: progress
+        }
         yield self._connection.send_message(Request(Request.Command.JOB_PROGRESS_NOTIFICATION, args))
 
 #         # Job progress (reply)
@@ -118,12 +125,12 @@ class JobHandler(object):
 #         _logger.info('[%s]: "%s"' % (SERVER, reply.msg))
 
     @gen.coroutine
-    def send_job_output_notification(self, job_ID, messages):
+    def send_job_output_notification(self, messages):
         # Job output (request)
         assert isinstance(messages, list)
         messages = map(lambda message: message.replace('"', ''), messages)
         _logger.debug('[%s]: Sending job output notification: %s' % (CLIENT, "\n".join(messages)))
-        args = { Request.ARGS_JOB_ID: job_ID, Request.ARGS_LINES: messages }
+        args = { Request.ARGS_JOB_CATEGORY: self._job_category, Request.ARGS_JOB_ID: self._job_ID, Request.ARGS_LINES: messages }
         yield self._connection.send_message(Request(Request.Command.JOB_OUTPUT_NOTIFICATION, args))
 
 #         # Job output (reply)
@@ -137,10 +144,60 @@ class JobHandler(object):
 #         _logger.info('[%s]: "%s"' % (SERVER, reply.msg))
 
     @gen.coroutine
+    def send_job_finished_notification(self, file_size, file_hash):
+        # Job finished (request)
+        _logger.debug('[%s]: Sending job finished notification (file-size: %d, file-hash: %s)'
+                      % (CLIENT, file_size, file_hash))
+        args = {
+            Request.ARGS_JOB_CATEGORY: self._job_category,
+            Request.ARGS_JOB_ID: self._job_ID,
+            Request.ARGS_FILE_SIZE: file_size,
+            Request.ARGS_FILE_HASH: file_hash
+        }
+        yield self._connection.send_message(Request(Request.Command.JOB_FINISHED, args))
+
+    @gen.coroutine
+    def send_file(self, file_handle):
+        file_handle.seek(0, 0)
+        _logger.info("[%s]: Sending..." % CLIENT)
+        byte_buffer = file_handle.read(BUFFER_SIZE)
+        while byte_buffer:
+            yield self._connection.send_message(byte_buffer, logging_enabled=False)
+            byte_buffer = file_handle.read(BUFFER_SIZE)
+        _logger.info("[%s]: Done Sending..." % CLIENT)
+
+        # File transfer finished (reply)
+        data = json.loads((yield self._connection.read_message()).rstrip())
+        if not Reply.is_valid(data):
+            raise Exception("Invalid reply!")
+        reply = Reply(data[Reply.KEY_RESULT], data[Reply.KEY_MSG])
+        if not reply.result:
+            _logger.error("[%s]: %s" % (SERVER, reply.msg))
+            raise Exception("File transfer failed!")
+        _logger.info('[%s]: "%s"' % (SERVER, reply.msg))
+
+    @gen.coroutine
+    def send_job_failed_notification(self, message):
+        # Job failed (request)
+        message = message.replace('"', '')
+        _logger.debug('[%s]: Sending job failed notification: %s' % (CLIENT, message))
+        args = {
+            Request.ARGS_JOB_CATEGORY: self._job_category,
+            Request.ARGS_JOB_ID: self._job_ID,
+            Request.ARGS_MSG: message
+        }
+        yield self._connection.send_message(Request(Request.Command.JOB_FAILED, args))
+
+    @gen.coroutine
     def send_job_conversion_finished_notification(self, job_ID, exit_code):
         # Job finished (request)
         _logger.debug('[%s]: Sending job finished notification' % CLIENT)
-        args = { Request.ARGS_JOB_ID: job_ID, Request.ARGS_RESULT: exit_code, Request.ARGS_MSG: "Job finished" }
+        args = {
+            Request.ARGS_JOB_CATEGORY: self._job_category,
+            Request.ARGS_JOB_ID: self._job_ID,
+            Request.ARGS_RESULT: exit_code,
+            Request.ARGS_MSG: "Job finished"
+        }
         yield self._connection.send_message(Request(Request.Command.JOB_CONVERSION_FINISHED_NOTIFICATION, args))
 
         # Job finished (reply)

@@ -39,10 +39,9 @@ import ast
 import json
 import tornado.escape
 import tornado.websocket
+from protocol import job
 from protocol import protocol
 from protocol.command import command as cmd
-from protocol.command.schedule_job_command import remove_all_listening_clients_from_job
-from protocol.job import Job
 from protocol.message.message import Message
 from protocol.message.job.job_failed_message import JobFailedMessage
 from protocol.message.job.job_finished_message import JobFinishedMessage
@@ -93,45 +92,49 @@ class ConverterWebSocketHandler(tornado.websocket.WebSocketHandler):
     def notify(cls, msg_type, args):
         # Note: jobID is equivalent to scratch project ID by definition!
         job_ID = args[jobmonprot.Request.ARGS_JOB_ID]
-        job_key = webhelpers.REDIS_JOB_KEY_TEMPLATE.format(job_ID)
-        job = Job.from_redis(cls.REDIS_CONNECTION, job_key)
+        job_category = args[jobmonprot.Request.ARGS_JOB_CATEGORY]
+        job_key = webhelpers.REDIS_JOB_KEY_TEMPLATE.format(job_category, job_ID)
+        current_job = job.Job.from_redis(cls.REDIS_CONNECTION, job_key)
 
-        if job == None:
+        if current_job == None:
             _logger.error("Cannot find job #{}".format(job_ID))
             return
 
         if msg_type == NotificationType.JOB_STARTED:
-            job.title = args[jobmonprot.Request.ARGS_TITLE]
-            job.state = Job.State.RUNNING
-            job.progress = 0
-            job.imageURL = args[jobmonprot.Request.ARGS_IMAGE_URL]
-            _logger.info('Started to convert: "%s"' % job.title)
+            current_job.title = args[jobmonprot.Request.ARGS_TITLE]
+            current_job.state = job.Job.State.RUNNING
+            current_job.progress = 0
+
+            if isinstance(current_job, job.ScratchJob) and job_category == job.Job.CategoryType.SCRATCH:
+                current_job.imageURL = args[jobmonprot.Request.ARGS_IMAGE_URL]
+
+            _logger.info('Started to convert: "%s"' % current_job.title)
         elif msg_type == NotificationType.JOB_FAILED:
             _logger.warn("Job failed! Exception Args: %s", args)
-            job.state = Job.State.FAILED
+            current_job.state = job.Job.State.FAILED
         elif msg_type == NotificationType.JOB_OUTPUT:
-            job.output = job.output if job.output != None else ""
+            current_job.output = current_job.output if current_job.output != None else ""
             for line in args[jobmonprot.Request.ARGS_LINES]:
-                job.output += line
+                current_job.output += line
         elif msg_type == NotificationType.JOB_PROGRESS:
             progress = args[jobmonprot.Request.ARGS_PROGRESS]
             isinstance(progress, int)
-            job.progress = progress
+            current_job.progress = progress
         elif msg_type == NotificationType.JOB_CONVERSION_FINISHED:
             _logger.info("Job #{} finished, waiting for file transfer".format(job_ID))
             return
         elif msg_type == NotificationType.JOB_FINISHED:
-            job.state = Job.State.FINISHED
-            job.progress = 100
-            job.archiveCachedUTCDate = dt.utcnow().strftime(Job.DATETIME_FORMAT)
+            current_job.state = job.Job.State.FINISHED
+            current_job.progress = 100
+            current_job.archiveCachedUTCDate = dt.utcnow().strftime(job.Job.DATETIME_FORMAT)
 
         # find listening clients
         # TODO: cache this...
-        listening_client_job_key = webhelpers.REDIS_LISTENING_CLIENT_JOB_KEY_TEMPLATE.format(job_ID)
+        listening_client_job_key = webhelpers.REDIS_LISTENING_CLIENT_JOB_KEY_TEMPLATE.format(job_category, job_ID)
         all_listening_client_IDs = cls.REDIS_CONNECTION.get(listening_client_job_key)
         if all_listening_client_IDs == None:
             _logger.warn("WTH?! No listening clients stored!")
-            if not job.save_to_redis(cls.REDIS_CONNECTION, job_key):
+            if not current_job.save_to_redis(cls.REDIS_CONNECTION, job_key):
                 _logger.info("Unable to update job state!")
             return
 
@@ -144,10 +147,10 @@ class ConverterWebSocketHandler(tornado.websocket.WebSocketHandler):
         if msg_type in (NotificationType.JOB_FINISHED, NotificationType.JOB_FAILED):
             # Job completely finished or failed -> remove all listeners from database
             #                                      before updating job state in database
-            remove_all_listening_clients_from_job(cls.REDIS_CONNECTION, job_ID)
+            job.remove_all_listening_clients_from_job(cls.REDIS_CONNECTION, job_category, job_ID)
 
         # update job state in database
-        if not job.save_to_redis(cls.REDIS_CONNECTION, job_key):
+        if not current_job.save_to_redis(cls.REDIS_CONNECTION, job_key):
             _logger.info("Unable to update job state!")
             return
 
@@ -159,14 +162,15 @@ class ConverterWebSocketHandler(tornado.websocket.WebSocketHandler):
 
         for idx, socket_handlers in enumerate(currently_listening_client_sockets):
             if msg_type == NotificationType.JOB_STARTED:
-                message = JobRunningMessage(job_ID, job.title, job.imageURL)
+                image_url = current_job.imageURL if isinstance(current_job, job.ScratchJob) else None
+                message = JobRunningMessage(job_ID, current_job.title, image_url)
             elif msg_type == NotificationType.JOB_OUTPUT:
                 message = JobOutputMessage(job_ID, args[jobmonprot.Request.ARGS_LINES])
             elif msg_type == NotificationType.JOB_PROGRESS:
-                message = JobProgressMessage(job_ID, job.progress)
+                message = JobProgressMessage(job_ID, current_job.progress)
             elif msg_type == NotificationType.JOB_FINISHED:
                 client_ID = currently_listening_client_IDs[idx]
-                download_url = webhelpers.create_download_url(job_ID, client_ID, job.title)
+                download_url = webhelpers.create_download_url(job_ID, client_ID, current_job.title)
                 message = JobFinishedMessage(job_ID, download_url, None)
             elif msg_type == NotificationType.JOB_FAILED:
                 message = JobFailedMessage(job_ID)

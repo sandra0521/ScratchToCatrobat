@@ -103,8 +103,8 @@ class TCPConnectionHandler(object):
         allowed_auth_keys = self.server.settings["allowed_auth_keys"]
         allowed_auth_keys_for_host = [auth_key["key"] for auth_key in allowed_auth_keys if auth_key["host"] == host]
         if len(allowed_auth_keys_for_host) == 0:
-            _logger.warn("An intruder '%s' might have tried to connect to our server!"
-                         % address)
+            _logger.warn("An intruder '{}' might have tried to connect to our server!"
+                         .format(address))
             # TODO: block him...
             # Don't tell the client that this hostname is forbidden
             raise TCPConnectionException("Invalid AUTH_KEY given.")
@@ -228,7 +228,8 @@ class TCPConnectionHandler(object):
             args["msg"] = msg
             ConverterWebSocketHandler.notify(NotificationType.JOB_FAILED, args)
         else:
-            ConverterWebSocketHandler.notify(NotificationType.JOB_FAILED, { "msg": msg })
+            args["msg"] = msg
+            ConverterWebSocketHandler.notify(NotificationType.JOB_FAILED, args)
         self.connection.print_error_and_close_stream()
 
     @gen.coroutine

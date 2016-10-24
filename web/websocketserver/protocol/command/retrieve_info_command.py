@@ -24,10 +24,10 @@ import ast
 from command import Command
 from websocketserver.protocol.message.base.error_message import ErrorMessage
 from websocketserver.protocol.message.base.info_message import InfoMessage
-from websocketserver.protocol.job import Job
+from websocketserver.protocol.job import Job, ScratchJob
 import helpers as webhelpers
 from scratchtocatrobat.tools import helpers
-from schedule_job_command import get_jobs_of_client
+from websocketserver.protocol.command.schedule_scratch_job_command import get_scratch_jobs_of_client
 
 _logger = logging.getLogger(__name__)
 
@@ -41,10 +41,11 @@ class RetrieveInfoCommand(Command):
         assert self.is_valid_client_ID(ctxt.redis_connection, client_ID)
 
         redis_conn = ctxt.redis_connection
-        jobs = get_jobs_of_client(redis_conn, client_ID)
+        jobs = get_scratch_jobs_of_client(redis_conn, client_ID)
         assert isinstance(jobs, list)
         jobs_info = []
         for job in jobs:
+            assert isinstance(job, ScratchJob)
             info = job.__dict__
             info["downloadURL"] = webhelpers.create_download_url(job.jobID, client_ID, job.title)
             del info["output"]

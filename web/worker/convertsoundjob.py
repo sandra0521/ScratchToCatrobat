@@ -69,17 +69,16 @@ class ConverterJobHandler(jobhandler.JobHandler):
 
     @gen.coroutine
     def run_job(self, args):
-        assert isinstance(args["jobID"], int)
         assert isinstance(args["title"], (str, unicode))
         assert isinstance(args["imageURL"], (str, unicode))
         assert isinstance(args["url"], (str, unicode))
         assert isinstance(args["outputDir"], (str, unicode))
-        job_ID, title, image_URL = args["jobID"], args["title"], args["imageURL"]
+        title, image_URL = args["title"], args["imageURL"]
 
         exec_args = ["/usr/bin/env", "python", CONVERTER_RUN_SCRIPT_PATH,
                      args["url"], args["outputDir"], str(args["jobID"]), "--web-mode"]
         process = subprocess.Popen(exec_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        yield self.send_job_started_notification(job_ID, title, image_URL)
+        yield self.send_job_started_notification(title, image_URL)
 
         start_progr_indicator = helpers.ProgressBar.START_PROGRESS_INDICATOR
         end_progr_indicator = helpers.ProgressBar.END_PROGRESS_INDICATOR
@@ -103,24 +102,24 @@ class ConverterJobHandler(jobhandler.JobHandler):
                 old_progress = progress
                 if progress_difference > 0:
                     _logger.debug("[{}]: {}".format(CLIENT, progress))
-                    yield self.send_job_progress_notification(job_ID, progress)
+                    yield self.send_job_progress_notification(progress)
                 continue
 
             # case: console output
             _logger.debug("[%s]: %s" % (CLIENT, line))
             line_buffer += [line]
             if self._verbose and len(line_buffer) >= LINE_BUFFER_SIZE:
-                yield self.send_job_output_notification(job_ID, line_buffer)
+                yield self.send_job_output_notification(line_buffer)
                 line_buffer = []
 
         if self._verbose and len(line_buffer):
-            yield self.send_job_output_notification(job_ID, line_buffer)
+            yield self.send_job_output_notification(line_buffer)
 
         exit_code = process.wait() # XXX: work around this when experiencing errors...
         _logger.info("[%s]: Exit code is: %d" % (CLIENT, exit_code))
 
         # NOTE: exit-code is evaluated by TCP server
-        yield self.send_job_conversion_finished_notification(job_ID, exit_code)
+        yield self.send_job_conversion_finished_notification(exit_code)
 
     @gen.coroutine
     def post_processing(self, args):
@@ -184,17 +183,14 @@ class ConverterJobHandler(jobhandler.JobHandler):
                 _logger.info('Shutdown')
         stop_io_loop()
 
-def convert_scratch_project(job_ID, host, port, verbose):
+
+def convert_sound_files(job_ID, sound_urls, host, port, verbose):
     logging.basicConfig(
         filename=None,
         level=logging.DEBUG,
         format='%(asctime)s: %(levelname)7s: [%(name)s]: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-
-#     job = get_current_job()
-#     job.meta['handled_by'] = socket.gethostname()
-#     job.save()
 
     # validate URL
     if job_ID == None or not isinstance(job_ID, int):

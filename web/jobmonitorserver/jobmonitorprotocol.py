@@ -54,6 +54,7 @@ class Request(object):
     ARGS_LINES = "ARGS_LINES"
     ARGS_TITLE = "ARGS_TITLE"
     ARGS_IMAGE_URL = "ARGS_IMAGE_URL"
+    ARGS_JOB_CATEGORY = "ARGS_JOB_CATEGORY"
     ARGS_JOB_ID = "ARGS_JOB_ID"
     ARGS_PROGRESS = "ARGS_PROGRESS"
     ARGS_RESULT = "ARGS_RESULT"
@@ -63,12 +64,13 @@ class Request(object):
 
     COMMAND_ARGS = {
         Command.AUTH: [ARGS_AUTH_KEY],
-        Command.JOB_STARTED_NOTIFICATION: [ARGS_JOB_ID, ARGS_TITLE, ARGS_IMAGE_URL, ARGS_MSG],
-        Command.JOB_PROGRESS_NOTIFICATION: [ARGS_JOB_ID, ARGS_PROGRESS],
-        Command.JOB_OUTPUT_NOTIFICATION: [ARGS_JOB_ID, ARGS_LINES],
-        Command.JOB_CONVERSION_FINISHED_NOTIFICATION: [ARGS_JOB_ID, ARGS_RESULT, ARGS_MSG],
-        Command.JOB_FINISHED: [ARGS_JOB_ID, ARGS_FILE_SIZE, ARGS_FILE_HASH],
-        Command.JOB_FAILED: [ARGS_JOB_ID, ARGS_MSG]
+        Command.JOB_STARTED_NOTIFICATION: [ARGS_JOB_CATEGORY, ARGS_JOB_ID, ARGS_TITLE, ARGS_MSG],
+        Command.JOB_PROGRESS_NOTIFICATION: [ARGS_JOB_CATEGORY, ARGS_JOB_ID, ARGS_PROGRESS],
+        Command.JOB_OUTPUT_NOTIFICATION: [ARGS_JOB_CATEGORY, ARGS_JOB_ID, ARGS_LINES],
+        Command.JOB_CONVERSION_FINISHED_NOTIFICATION: [ARGS_JOB_CATEGORY, ARGS_JOB_ID,
+                                                       ARGS_RESULT, ARGS_MSG],
+        Command.JOB_FINISHED: [ARGS_JOB_CATEGORY, ARGS_JOB_ID, ARGS_FILE_SIZE, ARGS_FILE_HASH],
+        Command.JOB_FAILED: [ARGS_JOB_CATEGORY, ARGS_JOB_ID, ARGS_MSG]
     }
 
     def __init__(self, cmd, args=None):
@@ -142,7 +144,7 @@ class TCPConnection(object):
 
     def print_error_and_close_stream(self):
         if not self.stream.closed():
-            _logger.error("[%s]: An error occured: Stream will be closed!" % self._me)
+            _logger.error("[%s]: An error occurred: Stream will be closed!" % self._me)
             self.stream.close()
         else:
-            _logger.error("[%s] An error occured: Stream has been closed!" % self._me)
+            _logger.error("[%s] An error occurred: Stream has been closed!" % self._me)

@@ -24,9 +24,9 @@ import urllib
 sys.path.append(os.path.join(os.path.realpath(os.path.dirname(__file__)), "..", "src"))
 from scratchtocatrobat.scratch import scratchwebapi
 
-REDIS_JOB_KEY_TEMPLATE = "job#{}"
-REDIS_LISTENING_CLIENT_JOB_KEY_TEMPLATE = "listeningClientsOfJob#{}"
-REDIS_JOB_CLIENT_KEY_TEMPLATE = "jobsOfClient#{}"
+REDIS_JOB_KEY_TEMPLATE = "job#{}#{}"
+REDIS_LISTENING_CLIENT_JOB_KEY_TEMPLATE = "listeningClientsOfJob#{}#{}"
+REDIS_JOB_CLIENT_KEY_TEMPLATE = "jobsOfClient#{}#{}"
 
 
 # TODO: remove theses data of default programs and fetch/update dynamically

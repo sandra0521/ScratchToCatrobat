@@ -173,13 +173,38 @@ class Object(common.DictAccessWrapper):
                     return True
             return False
 
+        def add_all_numeral_keys():
+            key_pressed_keys.add(("0","keyPressedBrick"))
+            key_pressed_keys.add(("1","keyPressedBrick"))
+            key_pressed_keys.add(("2","keyPressedBrick"))
+            key_pressed_keys.add(("3","keyPressedBrick"))
+            key_pressed_keys.add(("4","keyPressedBrick"))
+            key_pressed_keys.add(("5","keyPressedBrick"))
+            key_pressed_keys.add(("6","keyPressedBrick"))
+            key_pressed_keys.add(("7","keyPressedBrick"))
+            key_pressed_keys.add(("8","keyPressedBrick"))
+            key_pressed_keys.add(("9","keyPressedBrick"))
+
+
+
+
         def replace_key_pressed_blocks(block_list):
             new_block_list = []
             for block in block_list:
                 if isinstance(block, list):
                     if block[0] == 'keyPressed:':
-                        new_block_list += [["readVariable", S2CC_KEY_VARIABLE_NAME+block[1]]]
-                        key_pressed_keys.add((block[1],"keyPressedBrick"))
+                        print(block[0] + "   " + str(block[1]) + "   " + S2CC_KEY_VARIABLE_NAME)
+                        if isinstance(block[1], list):
+                            print ("not implemented yet")
+
+                            #new_block_list += [["readVariable", S2CC_KEY_VARIABLE_NAME+"any"]]
+                            #key_pressed_keys.add(("any","keyPressedBrick"))
+                            # parse formula
+                            # add blocks + key variable
+                            add_all_numeral_keys()
+                        else:
+                            new_block_list += [["readVariable", S2CC_KEY_VARIABLE_NAME+block[1]]]
+                            key_pressed_keys.add((block[1],"keyPressedBrick"))
                     else:
                         new_block_list += [replace_key_pressed_blocks(block)]
                 else:
@@ -192,7 +217,6 @@ class Object(common.DictAccessWrapper):
                 workaround_info[ADD_KEY_PRESSED_SCRIPT_KEY] = key_pressed_keys
                 # rebuild ScriptElement tree
                 script.script_element = ScriptElement.from_raw_block(script.blocks)
-
         ############################################################################################
         # distance to object workaround
         ############################################################################################
@@ -233,6 +257,7 @@ class Object(common.DictAccessWrapper):
             return new_block_list
 
         positions_needed_for_sprite_names = set()
+
         for script in self.scripts:
             if has_distance_to_object_block(script.blocks, all_sprite_names):
                 script.blocks = replace_distance_to_object_blocks(script.blocks, positions_needed_for_sprite_names)

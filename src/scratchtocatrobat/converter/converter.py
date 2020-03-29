@@ -1074,6 +1074,7 @@ class _ScratchObjectConverter(object):
             assert user_variable is not None
 
         for scratch_script in scratch_object.scripts:
+            print("    " + str(scratch_object.scripts))
             cat_instance = self._catrobat_script_from(scratch_script, sprite, self._catrobat_project,
                                                       sprite_context)
             # TODO: remove this if and replace "elif" with "if" as soon as user bricks are supported by Catrobat
@@ -1311,6 +1312,7 @@ class _ScratchObjectConverter(object):
         if not isinstance(scratch_blocks, scratch.ScriptElement):
             scratch_blocks = scratch.ScriptElement.from_raw_block(scratch_blocks)
         traverser = _BlocksConversionTraverser(catrobat_sprite, cls._catrobat_project, script_context)
+        print(str(scratch_blocks))
         traverser.traverse(scratch_blocks)
         return traverser.converted_bricks
 
@@ -1516,6 +1518,8 @@ class _BlocksConversionTraverser(scratch.AbstractBlocksTraverser):
         if isinstance(self.script_element, scratch.Block):
             log.debug("    block to convert: %s, arguments: %s",
                       block_name, catrobat.simple_name_for(self.arguments))
+            print("    block to convert: %s, arguments: %s",
+                  block_name, catrobat.simple_name_for(self.arguments))
 
             unmapped_block_arguments = filter(lambda arg: isinstance(arg, UnmappedBlock), self.arguments)
             unsupported_blocks = map(lambda unmapped_block: unmapped_block.to_placeholder_brick(self.block_name)[0], unmapped_block_arguments)
@@ -1921,7 +1925,9 @@ class _BlocksConversionTraverser(scratch.AbstractBlocksTraverser):
 
     @_register_handler(_block_name_to_handler_map, "doIf")
     def _convert_if_block(self):
+        print(str(self.arguments[0]))
         assert len(self.arguments) == 2
+        print(str(self.arguments[0]) + "   " + str(self.arguments[1]))
         if_begin_brick = catbricks.IfThenLogicBeginBrick(catrobat.create_formula_with_value(self.arguments[0]))
         if_bricks = self.arguments[1] or []
         assert isinstance(if_bricks, list)

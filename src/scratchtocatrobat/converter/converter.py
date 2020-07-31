@@ -466,6 +466,10 @@ class _ScratchToCatrobat(object):
         "setPenParamTo:": None,
         "changePenSizeBy:": None,
         "changePenParamBy:": None,
+        "changePenHueBy:": None,
+        "changePenShadeBy:": None,
+        "setPenShadeTo:": None,
+        "setPenHueTo:": None,
 
         #name and number
         "sceneName": catformula.Sensors.OBJECT_BACKGROUND_NAME,
@@ -3196,6 +3200,51 @@ class _BlocksConversionTraverser(scratch.AbstractBlocksTraverser):
         set_variable_brick = catbricks.SetVariableBrick(formula, param_variable_mapping[colorparam])
 
         return [set_variable_brick] + self._add_hsv_to_rgb_conversion_algorithm_bricks()
+
+    @_register_handler(_block_name_to_handler_map, "changePenHueBy:")
+    def _convert_scratch2_change_pen_hue_block(self):
+        print("changeHue")
+        print(self.arguments)
+        [hue_value] = self.arguments
+
+        (h_variable, s_variable, v_variable) = self.get_hsv_pen_color_variables()
+        assert(isinstance(h_variable, catformula.UserVariable) and isinstance(s_variable, catformula.UserVariable)
+               and isinstance(v_variable, catformula.UserVariable))
+
+        #param_name_mapping = {"color": "h", "saturation": "s", "brightness": "v"}
+        #var_id = catrobat.build_var_id(scratch.S2CC_PEN_COLOR_VARIABLE_NAMES[param_name_mapping[colorparam]])
+        #if colorparam == "color":
+        #    formula = catrobat.create_formula_for(
+        #        [catformula.Functions.MOD,
+        #         [catformula.Operators.PLUS, var_id, [catformula.Operators.DIVIDE, ["()", value], 100]],
+        #         1])
+        #else:
+        #    formula = catrobat.create_formula_for(
+        #        [catformula.Functions.MAX,
+        #         [catformula.Functions.MIN,
+        #          [catformula.Operators.PLUS, var_id, [catformula.Operators.DIVIDE, ["()", value], 100]],
+        #          1],
+        #         0])
+
+        #param_variable_mapping = {"color": h_variable, "saturation": s_variable, "brightness": v_variable}
+        #set_variable_brick = catbricks.SetVariableBrick(formula, param_variable_mapping[colorparam])
+
+        #return [set_variable_brick] + self._add_hsv_to_rgb_conversion_algorithm_bricks()
+
+    @_register_handler(_block_name_to_handler_map, "setPenHueTo:")
+    def _convert_scratch2_change_pen_hue_block(self):
+        print("setHue")
+        print(self.arguments)
+
+    @_register_handler(_block_name_to_handler_map, "changePenShadeBy:")
+    def _convert_scratch2_change_pen_hue_block(self):
+        print("changeShade")
+        print(self.arguments)
+
+    @_register_handler(_block_name_to_handler_map, "setPenShadeTo:")
+    def _convert_scratch2_change_pen_hue_block(self):
+        print("setShade")
+        print(self.arguments)
 
     # Scratch' pen size is ~3.65x (scratch.S2CC_PEN_SIZE_MULTIPLIER) bigger than Catrobat's
     @staticmethod

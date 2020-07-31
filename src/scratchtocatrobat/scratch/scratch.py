@@ -95,9 +95,11 @@ ADD_PEN_DEFAULT_BEHAVIOR = "add_pen_default_behavior"
 ADD_PEN_COLOR_VARIABLES = "add_pen_color_variables"
 ADD_PEN_SIZE_VARIABLE = "add_pen_size_variable"
 UPDATE_HELPER_VARIABLE_TIMEOUT = 0.04
-# TODO: extend whenever new bricks are added
 PEN_BRICK_LIST = ["clearPenTrails", "stampCostume", "putPenDown", "putPenUp", "penColor:", "changePenParamBy:",
                   "setPenParamTo:", "changePenSizeBy:", "penSize:", "penShade:", "changePenShadeBy:", "penHue:"]
+SCRATCH2_PEN_BRICKS = ["changePenHueBy", "changePenShadeBy", "setPenShadeTo", "setPenHueTo"]
+# TODO: extend whenever new bricks are added
+
 
 
 def verify_resources_of_scratch_object(scratch_object, md5_to_resource_path_map, project_base_path):
@@ -486,6 +488,8 @@ class Object(common.DictAccessWrapper):
                 # TODO: remove transparency case as soon as catrobat supports pen transparency change
                 if isinstance(block, list) and ((block[0] == 'changePenParamBy:' or block[0] == 'setPenParamTo:')
                 and block[1] != 'transparency' or has_pen_color_param_block(block)):
+                    return True
+                elif isinstance(block, list) and (block[0] in SCRATCH2_PEN_BRICKS):
                     return True
             return False
 

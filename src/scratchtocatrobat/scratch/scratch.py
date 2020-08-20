@@ -80,7 +80,8 @@ S2CC_PEN_COLOR_VARIABLE_NAMES = {"h": "S2CC:pen_hue", "s": "S2CC:pen_saturation"
 S2CC_PEN_COLOR_DEFAULT_HSV_VALUE = {"h": 0.67, "s": 1.00, "v": 1.00}
 S2CC_PEN_COLOR_HELPER_VARIABLE_NAMES = {
     "h_i": "S2CC:_h_i", "f": "S2CC:_f", "p": "S2CC:_p", "q": "S2CC:_q",
-    "t": "S2CC:_t", "r": "S2CC:_red", "g": "S2CC:_green", "b": "S2CC:_blue"
+    "t": "S2CC:_t", "r": "S2CC:_red", "g": "S2CC:_green", "b": "S2CC:_blue",
+    "scratch2_shade": "STCC:_scratch2_shade", "shade_helper":"STCC:_shade_helper"
 }
 S2CC_PEN_SIZE_VARIABLE_NAME = "S2CC:pen_size"
 S2CC_PEN_SIZE_MULTIPLIER = 3.65
@@ -97,7 +98,7 @@ ADD_PEN_SIZE_VARIABLE = "add_pen_size_variable"
 UPDATE_HELPER_VARIABLE_TIMEOUT = 0.04
 PEN_BRICK_LIST = ["clearPenTrails", "stampCostume", "putPenDown", "putPenUp", "penColor:", "changePenParamBy:",
                   "setPenParamTo:", "changePenSizeBy:", "penSize:", "penShade:", "changePenShadeBy:", "penHue:"]
-SCRATCH2_PEN_BRICKS = ["changePenHueBy", "changePenShadeBy", "setPenShadeTo", "setPenHueTo"]
+SCRATCH2_PEN_BRICKS = ["changePenHueBy:", "changePenShadeBy:", "setPenShadeTo:", "setPenHueTo:"]
 # TODO: extend whenever new bricks are added
 
 
@@ -479,7 +480,8 @@ class Object(common.DictAccessWrapper):
         ############################################################################################
         def has_pen_brick(block_list):
             for block in block_list:
-                if isinstance(block, list) and (block[0] in PEN_BRICK_LIST or has_pen_brick(block)):
+                if isinstance(block, list) and \
+                        (block[0] in PEN_BRICK_LIST or block[0] in SCRATCH2_PEN_BRICKS or has_pen_brick(block)):
                     return True
             return False
 
